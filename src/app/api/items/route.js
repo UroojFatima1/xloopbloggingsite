@@ -1,62 +1,70 @@
 export const runtime = "nodejs";
 
+import { NextResponse } from "next/server";
+import { connectDB } from "@/lib/dbconnect";
+import Post from "@/model/Post";
 import { verifyToken } from "@/lib/jwt";
-import { cookies } from "next/headers";
-
-let posts = [
-  {
-    id: 1,
-    title: "Understanding Authentication in Next.js",
-    content: "Learn how cookies, JWTs, and middleware help secure your Next.js apps.",
-    imageUrl: "https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=1200&q=80",
-    author: "Urooj Fatima",
-  },
-  {
-    id: 2,
-    title: "Top 5 React Optimization Tips",
-    content: "Discover ways to enhance performance and efficiency in your React projects.",
-    imageUrl: "https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=1200&q=80",
-    author: "Tech Insights",
-  },
-];
-
-export async function GET() {
-  return Response.json(posts);
-}
+import fs from "fs";
 
 export async function POST(req) {
   try {
-    const cookieStore = cookies();
-    const token = cookieStore.get("token")?.value;
+    await connectDB();
 
-    if (!token) {
-      return Response.json({ error: "Unauthorized: No token provided" }, { status: 401 });
-    }
+    const cookieHeader = req.headers.get("cookie") || "";
+    const token = cookieHeader.split("token=")[1]?.split(";")[0];
+
+    if (!token)
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const user = verifyToken(token);
-    if (!user) {
-      return Response.json({ error: "Unauthorized: Invalid token" }, { status: 401 });
+    if (!user)
+      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+
+    const formData = await req.formData();
+    const title = formData.get("title");
+    const description = formData.get("description");
+    const content = formData.get("content");
+    const imageFile = formData.get("image");
+
+    if (!title || !description || !content) {
+      return NextResponse.json(
+        { error: "All fields (title, description, content) are required" },
+        { status: 400 }
+      );
     }
 
-    const { title, content, imageUrl } = await req.json();
-
-    if (!title || !content) {
-      return Response.json({ error: "Title and content are required" }, { status: 400 });
+    let imageUrl = "";
+    if (imageFile && imageFile.size > 0) {
+      const arrayBuffer = await imageFile.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      const uploadPath = `./public/uploads/${imageFile.name}`;
+      fs.writeFileSync(uploadPath, buffer);
+      imageUrl = `/uploads/${imageFile.name}`;
     }
 
-    const newPost = {
-      id: Date.now(),
+    const post = await Post.create({
       title,
+      description,
       content,
-      imageUrl: imageUrl || "https://via.placeholder.com/300x180?text=Blog+Post",
-      author: user.name || user.email || "Anonymous",
-    };
+      imageUrl,
+      author: user.name || user.email,
+      authorId: user.id, 
+    });
 
-    posts.push(newPost);
+    return NextResponse.json({ message: "Post created", post }, { status: 201 });
+  } catch (err) {
+    console.error("Error creating post:", err);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
+  }
+}
 
-    return Response.json({ message: "Post created successfully", post: newPost }, { status: 201 });
-  } catch (error) {
-    console.error("Error creating post:", error);
-    return Response.json({ error: "Server error" }, { status: 500 });
+export async function GET() {
+  try {
+    await connectDB();
+    const posts = await Post.find().sort({ createdAt: -1 });
+    return NextResponse.json(posts, { status: 200 });
+  } catch (err) {
+    console.error("Error fetching posts:", err);
+    return NextResponse.json({ error: "Failed to fetch posts" }, { status: 500 });
   }
 }

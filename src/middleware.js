@@ -1,30 +1,32 @@
+export const runtime = "nodejs";
 import { NextResponse } from "next/server";
-import { verifyToken } from "@/lib/jwt"; 
+import { verifyToken } from "@/lib/jwt";
 
 export async function middleware(req) {
-  const token = req.cookies.get("token")?.value; 
+  const token = req.cookies.get("token")?.value;
+  const url = req.nextUrl.clone();
 
-
-
-  if (token) {
-    const valid = verifyToken(token);
-    if (valid ) {
-      return NextResponse.redirect(new URL("/dashboard", req.url));
-    }
-
-  
-    if (valid) return NextResponse.next();
+  if (!token) {
+    url.pathname = "/";
+    return NextResponse.redirect(url);
   }
 
-
-  if (!token ) {
-    return NextResponse.redirect(new URL("/login", req.url));
+  let validUser;
+  try {
+    validUser = verifyToken(token);
+  } catch (err) {
+    console.error("Middleware token verification failed:", err.message);
+    validUser = null;
   }
 
+  if (!validUser) {
+    url.pathname = "/";
+    return NextResponse.redirect(url);
+  }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*"],
+  matcher: ["/dashboard/:path*","/api/items/:path*","/api/profile/:path*","/api/verify/:path*","/api/logout/:path*","/blogs/:path*"],
 };

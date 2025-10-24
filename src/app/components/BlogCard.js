@@ -1,19 +1,61 @@
-export default function BlogCard({ blog }) {
+"use client";
+
+import { useRouter } from "next/navigation";
+
+export default function BlogCard({ blog, user, onDelete }) {
+  const router = useRouter();
+  const isOwner = user && (user.name === blog.author || user.email === blog.author);
+
+  const handleEdit = (e) => {
+    e.stopPropagation();
+    router.push(`/dashboard/edit-post/${blog._id}`);
+  };
+
+  const handleDelete = async (e) => {
+    e.stopPropagation();
+    try {
+      const res = await fetch(`/api/items/${blog._id}`, { method: "DELETE" });
+      if (res.ok && onDelete) {
+        onDelete(); // remove blog immediately from dashboard
+      }
+    } catch (err) {
+      console.error("Delete error:", err);
+    }
+  };
+
   return (
-    <div className="card hover:shadow-purple-700/30 hover:scale-[1.02] transition-all">
-      {blog.image && (
+    <div
+      onClick={() => router.push(`/blogs/${blog._id}`)}
+      className="bg-[#1a001f] p-4 rounded-lg cursor-pointer hover:shadow-lg hover:shadow-purple-600 transition relative"
+    >
+      {blog.imageUrl && (
         <img
-          src={blog.image}
+          src={blog.imageUrl}
           alt={blog.title}
-          className="w-full h-40 object-cover rounded-md mb-3"
+          className="w-full h-48 object-cover rounded mb-3"
         />
       )}
-      <h3 className="text-xl font-bold text-purple-300 mb-1">{blog.title}</h3>
-      <p className="text-gray-400 text-sm mb-2">
-        By {blog.author} • {blog.date}
-      </p>
-      <p className="text-gray-300 text-sm">{blog.excerpt}</p>
-      <button className="mt-3 btn text-sm w-full">Read More</button>
+
+      <h2 className="text-xl font-semibold text-purple-400">{blog.title}</h2>
+      <p className="text-gray-400 text-sm mt-2">{blog.description}</p>
+      <p className="text-gray-500 text-xs mt-3 italic">— {blog.author}</p>
+
+      {isOwner && (
+        <div className="flex gap-2 mt-3">
+          <button
+            onClick={handleEdit}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm"
+          >
+            Edit
+          </button>
+          <button
+            onClick={handleDelete}
+            className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm"
+          >
+            Delete
+          </button>
+        </div>
+      )}
     </div>
   );
 }
