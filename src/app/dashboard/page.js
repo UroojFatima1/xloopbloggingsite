@@ -12,6 +12,11 @@ export default function DashboardPage() {
   const [blogs, setBlogs] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const [editingBlog, setEditingBlog] = useState(null); // blog being edited
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editContent, setEditContent] = useState("");
+
   // Fetch logged-in user
   useEffect(() => {
     const getUser = async () => {
@@ -40,15 +45,8 @@ export default function DashboardPage() {
     const fetchBlogs = async () => {
       try {
         const res = await fetch("/api/items");
-        if (!res.ok) {
-          console.error("Error fetching blogs:", res.statusText);
-          return;
-        }
+        if (!res.ok) return;
         const data = await res.json();
-        if (!Array.isArray(data)) {
-          console.error("Invalid blogs data:", data);
-          return;
-        }
         setBlogs(data.filter((b) => b.author === (user.name || user.email)));
       } catch (err) {
         console.error("Failed to fetch blogs:", err);
@@ -57,6 +55,41 @@ export default function DashboardPage() {
 
     fetchBlogs();
   }, [user]);
+
+  const openEditModal = (blog) => {
+    setEditingBlog(blog);
+    setEditTitle(blog.title);
+    setEditDescription(blog.description);
+    setEditContent(blog.content);
+  };
+
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    if (!editTitle || !editContent) return;
+
+    try {
+      const res = await fetch(`/api/items/${editingBlog._id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: editTitle,
+          description: editDescription,
+          content: editContent,
+        }),
+      });
+
+      if (res.ok) {
+        const updated = await res.json();
+        setBlogs((prev) =>
+          prev.map((b) => (b._id === updated._id ? updated : b))
+        );
+        setEditingBlog(null); // close modal
+      }
+    } catch (err) {
+      console.error("Failed to update blog:", err);
+    }
+  };
 
   if (loading) {
     return (
@@ -93,9 +126,7 @@ export default function DashboardPage() {
         </div>
 
         {blogs.length === 0 ? (
-          <p className="text-gray-400 text-lg">
-            You haven’t posted any blogs yet.
-          </p>
+          <p className="text-gray-400 text-lg">You haven’t posted any blogs yet.</p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
             {blogs.map((blog) => (
@@ -106,6 +137,7 @@ export default function DashboardPage() {
                 onDelete={() =>
                   setBlogs((prev) => prev.filter((b) => b._id !== blog._id))
                 }
+                onEdit={() => openEditModal(blog)}
               />
             ))}
           </div>
@@ -113,6 +145,52 @@ export default function DashboardPage() {
       </main>
 
       <Footer />
+
+      {editingBlog && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+          <div className="bg-[#1a001f] p-6 rounded-lg w-full max-w-lg">
+            <h2 className="text-2xl text-purple-400 mb-4">Edit Blog</h2>
+            <form onSubmit={handleEditSubmit} className="space-y-4">
+              <input
+                type="text"
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                placeholder="Title"
+                className="w-full p-2 rounded bg-[#2a0030] border border-purple-700 text-white"
+              />
+              <input
+                type="text"
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                placeholder="Description"
+                className="w-full p-2 rounded bg-[#2a0030] border border-purple-700 text-white"
+              />
+              <textarea
+                value={editContent}
+                onChange={(e) => setEditContent(e.target.value)}
+                placeholder="Content"
+                rows={6}
+                className="w-full p-2 rounded bg-[#2a0030] border border-purple-700 text-white"
+              />
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingBlog(null)}
+                  className="bg-gray-600 hover:bg-gray-700 px-4 py-2 rounded"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded"
+                >
+                  Save
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

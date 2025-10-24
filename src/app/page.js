@@ -10,7 +10,7 @@ import Popup from "@/app/components/Popup";
 
 export default function Home() {
   const router = useRouter();
-
+ const [loading, setLoading] = useState(false);
   const [showPopup, setShowPopup] = useState(false); 
   const [showLogin, setShowLogin] = useState(true);
   const [message, setMessage] = useState("");
@@ -67,7 +67,7 @@ export default function Home() {
 
   const onSubmit = async (data) => {
     setMessage("");
-
+setLoading(true);
     const sanitized = {
       name: sanitizeHtml(data.name || ""),
       email: sanitizeHtml(data.email),
@@ -82,6 +82,7 @@ export default function Home() {
     });
 
     const result = await res.json();
+     setLoading(false);
     if (res.ok) {
       setMessage(result.message || "Success!");
 
@@ -202,8 +203,33 @@ export default function Home() {
 
                 <button
                   type="submit"
-                  className="w-full bg-purple-700 hover:bg-purple-800 text-white font-semibold py-3 rounded-lg transition-all"
+                  disabled={loading}
+                  className={`w-full bg-purple-700 hover:bg-purple-800 text-white font-semibold py-3 rounded-lg transition-all flex justify-center items-center gap-2 ${
+                    loading ? "cursor-not-allowed opacity-70" : ""
+                  }`}
                 >
+                  {loading && (
+                    <svg
+                      className="animate-spin h-5 w-5 text-white"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                      ></path>
+                    </svg>
+                  )}
                   {showLogin ? "Login" : "Sign Up"}
                 </button>
 

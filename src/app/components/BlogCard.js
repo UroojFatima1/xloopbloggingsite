@@ -2,22 +2,15 @@
 
 import { useRouter } from "next/navigation";
 
-export default function BlogCard({ blog, user, onDelete }) {
+export default function BlogCard({ blog, user, onDelete, onEdit }) {
   const router = useRouter();
   const isOwner = user && (user.name === blog.author || user.email === blog.author);
-
-  const handleEdit = (e) => {
-    e.stopPropagation();
-    router.push(`/dashboard/edit-post/${blog._id}`);
-  };
 
   const handleDelete = async (e) => {
     e.stopPropagation();
     try {
       const res = await fetch(`/api/items/${blog._id}`, { method: "DELETE" });
-      if (res.ok && onDelete) {
-        onDelete(); // remove blog immediately from dashboard
-      }
+      if (res.ok && onDelete) onDelete();
     } catch (err) {
       console.error("Delete error:", err);
     }
@@ -43,7 +36,10 @@ export default function BlogCard({ blog, user, onDelete }) {
       {isOwner && (
         <div className="flex gap-2 mt-3">
           <button
-            onClick={handleEdit}
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit?.();
+            }}
             className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm"
           >
             Edit
